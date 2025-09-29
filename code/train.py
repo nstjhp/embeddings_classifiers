@@ -39,6 +39,25 @@ from utils import (
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+def sanitise_params(params_dict):
+    """
+    Converts numpy-specific number types in a dictionary to standard Python types.
+    Done to allow the best params dictionary safely parsable by ast.literal_eval downstream.
+    """
+    sanitised = {}
+    for key, value in params_dict.items():
+        if isinstance(value, (np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+            sanitised[key] = int(value)
+        elif isinstance(value, (np.float16, np.float32, np.float64)):
+            sanitised[key] = float(value)
+        elif isinstance(value, np.ndarray):
+            sanitised[key] = value.tolist()
+        else:
+            sanitised[key] = value
+    return sanitised
+
 # --- Wrapper class to bundle model and calibrator ---
 class CalibratedModel:
     """A wrapper to hold a model and its calibrator as a single unit."""
@@ -188,12 +207,13 @@ def main():
                 n_jobs=args.rf_n_jobs,
                 cv=3,
                 refit=True, # Refits the best estimator on the whole training data
-                random_state=args.tune_seed
+                random_state=args.tune_seed,
+                verbose = 0
             )
             # XGB uses a different fit paradigm with eval_set
             if model_name == 'xgb':
                 # For tuning, we don't want to use the final validation set.
-                # A proper approach would be nested CV, but for a quick tune we can split train again.
+                # A proper approach would be nested CV, but for a quick tune we split train again.
                 X_train_sub, X_tune_val, y_train_sub, y_tune_val = train_test_split(X_train, y_train, test_size=0.2, stratify=y_train, random_state=args.tune_seed)
                 search.fit(X_train_sub, y_train_sub, eval_set=[(X_tune_val, y_tune_val)], verbose=False)
             else:
@@ -203,6 +223,13 @@ def main():
             tuning_results['best_params'] = str(search.best_params_)
             tuning_results['val_pr_auc'] = search.best_score_
             print(f"Best tuning PR-AUC: {search.best_score_:.4f}")
+            print(f"Found best params: {search.best_params_}")
+
+            print("\n--- START CV RESULTS ---")
+            cv_results_df = pd.DataFrame(search.cv_results_)
+            cv_results_df['params'] = cv_results_df['params'].apply(sanitise_params)
+            print(cv_results_df[['params', 'mean_test_score', 'std_test_score']].to_csv(index=False))
+            print("--- END CV RESULTS ---\n")
 
         # --- Model Fitting ---
         # If tuning was run, model is already refit. If not, fit it now.
