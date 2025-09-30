@@ -40,8 +40,20 @@ def load_data(
         and the protein ID Series.
     """
     print(f"Loading data from {path}...")
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Data file not found: {path}")
+    except Exception as e:
+        raise ValueError(f"Error reading CSV file {path}: {e}")
     print(f"Initial dataset shape: {df.shape}")
+
+    # Validate required columns exist
+    if label_col not in df.columns:
+        raise ValueError(f"Label column '{label_col}' not found in data. Available columns: {list(df.columns)}")
+
+    if "protein" not in df.columns:
+        raise ValueError(f"'protein' column not found in data. Available columns: {list(df.columns)}")
 
     if balance:
         positives = df[df[label_col] == 1]
@@ -170,7 +182,10 @@ def find_operating_point(y_true: np.ndarray, y_score: np.ndarray, strategy: str)
         return thresholds[idx]
     
     if strategy.startswith('fpr@'):
-        fpr_target = int(strategy.split('@')[1]) / 100.0
+        try:
+            fpr_target = int(strategy.split('@')[1]) / 100.0
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid fpr@ strategy format: {strategy}. Expected format: 'fpr@X' where X is an integer (e.g., 'fpr@1', 'fpr@5')")
         fpr, _, thresholds_roc = roc_curve(y_true, y_score)
         # Find the highest threshold that gives FPR <= target
         valid_indices = np.where(fpr <= fpr_target)[0]
@@ -179,7 +194,10 @@ def find_operating_point(y_true: np.ndarray, y_score: np.ndarray, strategy: str)
         return thresholds_roc[valid_indices[-1]]
     
     if strategy.startswith('ppv@'):
-        ppv_target = int(strategy.split('@')[1]) / 100.0
+        try:
+            ppv_target = int(strategy.split('@')[1]) / 100.0
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid ppv@ strategy format: {strategy}. Expected format: 'ppv@X' where X is an integer (e.g., 'ppv@30', 'ppv@50')")
         # Find the lowest threshold that gives precision >= target
         valid_indices = np.where(prec >= ppv_target)[0]
         if len(valid_indices) == 0:
