@@ -4,12 +4,18 @@ We aim to use the protein embeddings generated from the GlobDB for useful scienc
 
 ## Data preparation
 
-Starting from the GlobDB embeddings h5 file, your embeddings of interest need to be in CSV file.
-They will be 1024 columns wide, the header for them can just be `0,1,2,3,...,1022,1023`.
-Currently for classification tasks there is another column (identified as `label_col` in the code) that is the name of your column containing the labels.
-You can pass any other columns to be dropped in the `load_data` function.
-I have `protein` (an identifier) and its corresponding index in the original h5 embedding file.
-Both are dropped for the subsequent machine learning.
+Starting from the GlobDB embeddings h5 file, your embeddings of interest need to be in CSV format.
+They will be 1024 columns wide, with headers `0,1,2,3,...,1022,1023`.
+
+**Required columns:**
+- `protein`: A unique identifier for each protein
+- A label column (e.g., `FDHevidence`): Binary labels (0 or 1) for classification
+
+**Optional columns:**
+- `h5_index`: Index in the original h5 embedding file (will be dropped during training)
+- Any other metadata columns (can be dropped via the `load_data` function)
+
+**Note:** The `protein` column is preserved for tracking predictions, while `h5_index` and label columns are dropped before model training.
 
 ## Overview of the Entire Pipeline
 -----
@@ -62,3 +68,27 @@ The "best" one is based on a utility score of `Mean_PR_AUC - (alpha * Std_Dev_PR
         1.  A CSV file with summary statistics (mean, std, median, etc.) for each protein.
         2.  A plot of the distributions of the summary statistics.
         3.  An interactive plot (e.g. `stability_plot.html`) showing the mean prediction vs. the prediction instability for every protein.
+
+-----
+
+## Troubleshooting
+
+### Common Issues:
+
+1. **Missing columns error in predict.py**
+   - Ensure your data has a `protein` column
+   - The script will automatically skip dropping `h5_index` and `FDHevidence` if they don't exist
+
+2. **Aggregation script can't find prediction files**
+   - The script automatically detects the correct subdirectory based on model type
+   - Check that predictions were generated in `predictions/{JOBID}_{MODEL_TYPE}/` format
+   - Verify file names match pattern: `{dataset}_preds_{i:03d}.csv` (e.g., `holdout_negatives_preds_001.csv`)
+
+3. **Invalid hyperparameters JSON**
+   - Ensure the JSON string is properly formatted: `'{"param": value}'`
+   - No trailing commas in the JSON object
+   - Use proper quoting for the entire string in bash scripts
+
+4. **Tuning log parsing fails**
+   - Ensure `find_best_hyperparams.sbatch` completed successfully
+   - Check that log files contain the CV results markers: `--- START CV RESULTS ---` and `--- END CV RESULTS ---`
