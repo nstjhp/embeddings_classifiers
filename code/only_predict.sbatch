@@ -73,7 +73,7 @@ do
   
   MODEL_PATH="${TRAINED_MODEL_DIR}/pipeline_$(printf %03d ${i}).joblib"
   
-  # Predict on holdout negatives
+  # Predict on training pool
   /usr/bin/time python "$PRED_SCRIPT" \
     --model-path "$MODEL_PATH" \
     --data-path "$TRAINING_POOL_PATH" \
@@ -83,7 +83,7 @@ done
 # --- 3. Aggregation Step ---
 echo "Aggregating all predictions..."
 /usr/bin/time python $AGGREGATE_SCRIPT \
-  --predictions-dir "predictions" \
+  --predictions-dir "$PRED_SAVE_DIR" \
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "training_pool" \
