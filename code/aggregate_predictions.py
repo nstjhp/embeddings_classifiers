@@ -31,7 +31,7 @@ def main():
     print(f"Starting aggregation for dataset: {args.dataset_name}")
 
     for i in range(1, args.n_runs + 1):
-        pred_file = os.path.join(args.predictions_dir, f"{args.dataset_name}_preds_{i:03d}.csv").
+        pred_file = os.path.join(args.predictions_dir, f"{args.dataset_name}_preds_{i:03d}.csv")
 
         if not os.path.exists(pred_file):
             print(f"Warning: Prediction file not found for run {i}, skipping: {pred_file}")
@@ -46,7 +46,7 @@ def main():
 
             if "calibrated_probability" not in run_df.columns:
                 print(f"Error: 'calibrated_probability' column not found in {pred_file}")
-￼               continue
+                continue
 
             # Rename the probability column to be unique for this run
             prob_col_name = f"{args.model_type}_run_{i:02d}_prob"
@@ -67,7 +67,7 @@ def main():
     if master_df is not None  and files_processed > 0:
         os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
         master_df.to_csv(args.output_path, index=False)
-        print(f"\nAggregation complete. Saved {len(master_df)} proteins with {files_processed}/{{args.n_runs} predictions each to {args.output_path}")
+        print(f"\nAggregation complete. Saved {len(master_df)} proteins with {files_processed}/{args.n_runs} predictions each to {args.output_path}")
     else:
         print(f"Error: No prediction files were found or processed. No output generated. Expected {args.n_runs} files but processed {files_processed}.")
 
