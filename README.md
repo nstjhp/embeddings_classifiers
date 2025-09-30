@@ -28,7 +28,7 @@ Both are dropped for the subsequent machine learning.
 
       * **What you do:** Run a script that reads all the log files, analyses the performance vs. stability trade-off for every parameter set tested and automatically selects the best one. 
 The "best" one is based on a utility score of `Mean_PR_AUC - (alpha * Std_Dev_PR_AUC)` where `alpha=1.0` is default (higher `alpha` means you care more about stability i.e. a low standard deviation).
-      * **Command:** Seprately you can run `python select_best_params.py`, but now it is included in the `sbatch` file automatically.
+      * **Command:** Separately you can run `python select_best_params.py`, but now it is included in the `sbatch` file automatically.
       * **What it produces:**
         1.  **A JSON string** printed to your console of the best set of hyperparameters for that model.
         2.  An interactive HTML plot (`hyperparameter_tradeoff.html`) to visualise the trade-off and justify the choice.

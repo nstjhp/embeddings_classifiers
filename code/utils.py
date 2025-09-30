@@ -164,8 +164,21 @@ def find_operating_point(y_true: np.ndarray, y_score: np.ndarray, strategy: str)
         return 0.5 # Default fallback
 
     if strategy == 'f05':
-        # Add epsilon to avoid division by zero
-        f05_scores = fbeta_score(y_true, y_score[:, np.newaxis] >= thresholds, beta=0.5, average=None)[1]
+        # Calculate F-beta score for each threshold
+        # F-beta = (1 + beta^2) * (precision * recall) / (beta^2 * precision + recall)
+        # For beta=0.5, this weights precision more heavily than recall
+        beta = 0.5
+        beta_squared = beta ** 2
+        # Avoid division by zero
+        f05_scores = []
+        for i, thresh in enumerate(thresholds):
+            if prec[i] == 0 and recall[i] == 0:
+                f05_scores.append(0)
+            else:
+                f05 = (1 + beta_squared) * (prec[i] * recall[i]) / ((beta_squared * prec[i]) + recall[i] + 1e-9)
+                f05_scores.append(f05)
+        
+        f05_scores = np.array(f05_scores)
         idx = np.argmax(f05_scores)
         return thresholds[idx]
     

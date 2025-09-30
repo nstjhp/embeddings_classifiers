@@ -236,12 +236,18 @@ def main():
         if model_name not in args.tune:
              model.fit(X_train, y_train, **fit_params)
         
+        # Get the best iteration if available
+        best_iter = None
         if hasattr(model, 'best_iteration'):
-            best_iter = getattr(model, 'best_iteration', getattr(model, 'best_iteration', None))
-        else:
-            best_iter = getattr(model, 'best_iteration_', getattr(model, 'n_iter_', None))
-        if hasattr(model, 'named_steps'): # For pipeline
-            best_iter = getattr(model.named_steps['logreg'], 'n_iter_', [None])[0]
+            best_iter = model.best_iteration
+        elif hasattr(model, 'best_iteration_'):
+            best_iter = model.best_iteration_
+        elif hasattr(model, 'n_iter_'):
+            best_iter = model.n_iter_
+        elif hasattr(model, 'named_steps'):  # For pipeline
+            logreg = model.named_steps.get('logreg')
+            if logreg and hasattr(logreg, 'n_iter_'):
+                best_iter = logreg.n_iter_[0] if isinstance(logreg.n_iter_, np.ndarray) else logreg.n_iter_
 
         # --- Calibration ---
         print("Calibrating model...")
