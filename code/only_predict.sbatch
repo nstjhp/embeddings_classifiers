@@ -35,10 +35,11 @@ echo "MY_SLURM_PROCESS_ID: ${MY_SLURM_PROCESS_ID}"
 
 # --- Configuration ---
 N_RUNS=50
-MODEL_TYPE="xgb" # Model to train (e.g., xgb, hgb, rf)
+MODEL_TYPE="hgb" # Model to train (e.g., xgb, hgb, rf)
 BASE_DATA_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/FDH_EXP_and_no_FINAL.csv"
 HOLDOUT_NEGATIVES_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/holdout_negatives.csv"
 INDEPENDENT_TEST_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/only_maybes.csv"
+TRAINING_POOL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/training_data_pool.csv"
 LABEL_COLUMN_NAME="FDHevidence"
 
 TRAINING_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/train.py"
@@ -46,13 +47,15 @@ PRED_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_cla
 AGGREGATE_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/aggregate_predictions.py"
 ANALYSIS_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/analyse_stability.py"
 
-# --- Setup Directories ---
-#echo "Setting up directories..."
-#mkdir -p models predictions final_results
+# for HGB
+FIXED_HYPERPARAMETERS='{"l2_regularization": 0.0, "learning_rate": 0.1, "max_leaf_nodes": 63, "min_samples_leaf": 50}'
 
-# --- 1. For this script, we'll assume a 'training_data_pool.csv' exists,
-# containing all positives and the negatives available for training/sampling. ---
-TRAINING_POOL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/training_data_pool.csv"
+TRAINED_MODEL_DIR="models/7385738_${MODEL_TYPE}"
+
+if [ ! -d "$TRAINED_MODEL_DIR" ]; then
+    echo "Error: Trained models not found. Please prepare them first. This script is only for predicting."
+    exit 1
+fi
 if [ ! -f "$TRAINING_POOL_PATH" ]; then
     echo "Error: training_data_pool.csv not found. Please prepare it first."
     exit 1
@@ -60,17 +63,21 @@ fi
 
 # --- 2. Prediction Loop ---
 echo "Starting prediction loop..."
+# make a directory to save N_RUNS predictions
+PRED_SAVE_DIR="predictions/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
+mkdir -p "$PRED_SAVE_DIR"
+
 for i in $(seq 1 $N_RUNS)
 do
   echo "--- PREDICTING WITH MODEL FROM RUN $i ---"
   
-  MODEL_PATH="models/run_${i}/${MODEL_TYPE}_pipeline.joblib"
+  MODEL_PATH="${TRAINED_MODEL_DIR}/pipeline_$(printf %03d ${i}).joblib"
   
   # Predict on holdout negatives
   /usr/bin/time python "$PRED_SCRIPT" \
     --model-path "$MODEL_PATH" \
     --data-path "$TRAINING_POOL_PATH" \
-    --out-path "predictions/run_${i}/training_pool_preds.csv"
+    --out-path "${PRED_SAVE_DIR}/training_pool_preds_$(printf %03d ${i}).csv"
 done
 
 # --- 3. Aggregation Step ---
@@ -80,18 +87,18 @@ echo "Aggregating all predictions..."
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "training_pool" \
-  --output-path "final_results/aggregated_training_pool.csv"
+  --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv"
 
 echo "Aggregation done. Final results are in the 'final_results' directory."
 
 /usr/bin/time python $ANALYSIS_SCRIPT \
-  --input-csv "final_results/aggregated_training_pool.csv" \
-  --save-summary-path "final_results/summary_stats_training_pool.csv" \
+  --input-csv "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv" \
+  --save-summary-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_training_pool.csv" \
   --plot-distributions mean std median mad min max range q25 q75 iqr cv \
-  --plot-output-path "final_results/distributions_plot_training_pool.png" \
-  --interactive-plot-path "final_results/interactive_stability_plot_training_pool.html"
+  --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_training_pool.png" \
+  --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_training_pool.html"
 
-echo "Summary stats calculated and graphs made. Output is in the 'final_results' directory."
+echo "Summary stats calculated and graphs made. Output is in the 'final_results/' directory."
 
 # Append the contents of this script to the output file
 echo "=== Job Script Contents ==="
