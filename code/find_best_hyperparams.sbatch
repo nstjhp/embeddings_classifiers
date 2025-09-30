@@ -60,7 +60,7 @@ for i in $(seq 1 $N_TUNING_RUNS)
 do
   echo
   echo "--- Tuning Run $i / $N_TUNING_RUNS ---"
-  LOG_FILE="${LOG_DIR}/tuning_run_${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_${i}.log"
+  LOG_FILE="${LOG_DIR}/tuning_run_${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_$(printf %03d ${i}).log"
   
   # Run the training script in tuning mode.
   # IMPORTANT: use the loop variable 'i' as the random_state to ensure
@@ -91,7 +91,7 @@ echo "---------------------------------------------------------------------"
 # Use grep to find the relevant lines in the log files and display them.
 for i in $(seq 1 $N_TUNING_RUNS)
 do
-    LOG_FILE="${LOG_DIR}/tuning_run_${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_${i}.log"
+    LOG_FILE="${LOG_DIR}/tuning_run_${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_$(printf %03d ${i}).log"
     
     # Extract the PR-AUC score and the parameters string
     PR_AUC=$(grep "Best tuning PR-AUC" "$LOG_FILE" | awk '{print $NF}')
