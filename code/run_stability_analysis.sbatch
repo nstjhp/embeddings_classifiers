@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=agg_stats
+#SBATCH --job-name=hgb_train_pred_agg
 #SBATCH --output=/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/jobfiles/job%A_%a_%N.out
 #SBATCH --error=/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/jobfiles/job%A_%a_%N.err
 #SBATCH --mail-type=END,FAIL
@@ -124,24 +124,36 @@ do
     --model-path "$MODEL_PATH" \
     --data-path "$INDEPENDENT_TEST_PATH" \
     --out-path "${PRED_SAVE_DIR}/independent_data_preds_$(printf %03d ${i}).csv"
-done
 
+  # Predict on training pool
+  /usr/bin/time python "$PRED_SCRIPT" \
+    --model-path "$MODEL_PATH" \
+    --data-path "$TRAINING_POOL_PATH" \
+    --out-path "${PRED_SAVE_DIR}/training_pool_preds_$(printf %03d ${i}).csv"
+done
 
 # --- 3. Aggregation Step ---
 echo "Aggregating all predictions..."
 /usr/bin/time python $AGGREGATE_SCRIPT \
-  --predictions-dir "predictions" \
+  --predictions-dir "$PRED_SAVE_DIR" \
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "holdout_negatives" \
   --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_holdout_negatives.csv"
 
 /usr/bin/time python $AGGREGATE_SCRIPT \
-  --predictions-dir "predictions" \
+  --predictions-dir "$PRED_SAVE_DIR" \
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "independent_data" \
   --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_independent_data.csv"
+
+/usr/bin/time python $AGGREGATE_SCRIPT \
+  --predictions-dir "$PRED_SAVE_DIR" \
+  --n-runs "$N_RUNS" \
+  --model-type "$MODEL_TYPE" \
+  --dataset-name "training_pool" \
+  --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv"
 
 echo "Aggregation done. Final results are in the 'final_results' directory."
 
@@ -159,7 +171,18 @@ echo "Aggregation done. Final results are in the 'final_results' directory."
   --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_maybes.png" \
   --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_maybes.html"
 
+/usr/bin/time python $ANALYSIS_SCRIPT \
+  --input-csv "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv" \
+  --save-summary-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_training_pool.csv" \
+  --plot-distributions mean std median mad min max range q25 q75 iqr cv \
+  --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_training_pool.png" \
+  --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_training_pool.html"
+
 echo "Summary stats calculated and graphs made. Output is in the 'final_results' directory."
+
+cat "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_training_pool.csv" "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_holdout.csv" "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_maybes.csv" > "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_ALL.csv"
+
+echo "All datasets combined. Output is final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_ALL.csv"
 
 # Append the contents of this script to the output file
 echo "=== Job Script Contents ==="
