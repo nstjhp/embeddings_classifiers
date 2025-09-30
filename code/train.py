@@ -182,6 +182,8 @@ def main():
             model = xgb.XGBClassifier(**final_params)
             fit_params['eval_set'] = [(X_val, y_val)]
             fit_params['verbose'] = False
+            # Store for later use in tuning
+            current_scale_pos_weight = scale_pos_weight
 
         elif model_name == 'logreg':
             model = LogisticRegression(solver='lbfgs', max_iter=2000, class_weight="balanced", random_state=args.random_state)
@@ -197,7 +199,9 @@ def main():
             print(f"Tuning {model_name.upper()}...")
             param_grid = HGB_PARAM_GRID if model_name == 'hgb' else XGB_PARAM_GRID
             if model_name == 'xgb':
-                 param_grid['scale_pos_weight'] = [model.scale_pos_weight * m for m in [0.5, 1.0, 2.0]]
+                 # Use the calculated scale_pos_weight as base for tuning variations
+                 param_grid = param_grid.copy()  # Don't modify the original
+                 param_grid['scale_pos_weight'] = [current_scale_pos_weight * m for m in [0.5, 1.0, 2.0]]
 
             search = RandomizedSearchCV(
                 estimator=model,
@@ -236,12 +240,18 @@ def main():
         if model_name not in args.tune:
              model.fit(X_train, y_train, **fit_params)
         
+        # Get the best iteration if available
+        best_iter = None
         if hasattr(model, 'best_iteration'):
-            best_iter = getattr(model, 'best_iteration', getattr(model, 'best_iteration', None))
-        else:
-            best_iter = getattr(model, 'best_iteration_', getattr(model, 'n_iter_', None))
-        if hasattr(model, 'named_steps'): # For pipeline
-            best_iter = getattr(model.named_steps['logreg'], 'n_iter_', [None])[0]
+            best_iter = model.best_iteration
+        elif hasattr(model, 'best_iteration_'):
+            best_iter = model.best_iteration_
+        elif hasattr(model, 'n_iter_'):
+            best_iter = model.n_iter_
+        elif hasattr(model, 'named_steps'):  # For pipeline
+            logreg = model.named_steps.get('logreg')
+            if logreg and hasattr(logreg, 'n_iter_'):
+                best_iter = logreg.n_iter_[0] if isinstance(logreg.n_iter_, np.ndarray) else logreg.n_iter_
 
         # --- Calibration ---
         print("Calibrating model...")

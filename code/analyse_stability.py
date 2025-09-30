@@ -179,11 +179,17 @@ def main():
         parser.error("--plot-output-path is required when using --plot-distributions.")
 
     # --- Load Data ---
+    print(f"Loading aggregated predictions from {args.input_csv}...")
     try:
         agg_df = pd.read_csv(args.input_csv)
     except FileNotFoundError:
         print(f"Error: Input file not found at {args.input_csv}")
         return
+    except Exception as e:
+        print(f"Error loading CSV file: {e}")
+        return
+    
+    print(f"Loaded data with shape: {agg_df.shape}")
 
     # --- Run Analysis ---
     summary_stats_df = calculate_summary_stats(agg_df, protein_col=args.protein_col)

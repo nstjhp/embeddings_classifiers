@@ -40,8 +40,21 @@ def load_data(
         and the protein ID Series.
     """
     print(f"Loading data from {path}...")
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Data file not found: {path}")
+    except Exception as e:
+        raise ValueError(f"Error reading CSV file {path}: {e}")
+    
     print(f"Initial dataset shape: {df.shape}")
+    
+    # Validate required columns exist
+    if label_col not in df.columns:
+        raise ValueError(f"Label column '{label_col}' not found in data. Available columns: {list(df.columns)}")
+    
+    if "protein" not in df.columns:
+        raise ValueError(f"'protein' column not found in data. Available columns: {list(df.columns)}")
 
     if balance:
         positives = df[df[label_col] == 1]
@@ -164,13 +177,30 @@ def find_operating_point(y_true: np.ndarray, y_score: np.ndarray, strategy: str)
         return 0.5 # Default fallback
 
     if strategy == 'f05':
-        # Add epsilon to avoid division by zero
-        f05_scores = fbeta_score(y_true, y_score[:, np.newaxis] >= thresholds, beta=0.5, average=None)[1]
+        # Calculate F-beta score for each threshold
+        # F-beta = (1 + beta^2) * (precision * recall) / (beta^2 * precision + recall)
+        # For beta=0.5, this weights precision more heavily than recall
+        beta = 0.5
+        beta_squared = beta ** 2
+        # Avoid division by zero
+        f05_scores = []
+        for i, thresh in enumerate(thresholds):
+            if prec[i] == 0 and recall[i] == 0:
+                f05_scores.append(0)
+            else:
+                f05 = (1 + beta_squared) * (prec[i] * recall[i]) / ((beta_squared * prec[i]) + recall[i] + 1e-9)
+                f05_scores.append(f05)
+        
+        f05_scores = np.array(f05_scores)
         idx = np.argmax(f05_scores)
         return thresholds[idx]
     
     if strategy.startswith('fpr@'):
-        fpr_target = int(strategy.split('@')[1]) / 100.0
+        try:
+            fpr_target = int(strategy.split('@')[1]) / 100.0
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid fpr@ strategy format: {strategy}. Expected format: 'fpr@X' where X is an integer (e.g., 'fpr@1', 'fpr@5')")
+        
         fpr, _, thresholds_roc = roc_curve(y_true, y_score)
         # Find the highest threshold that gives FPR <= target
         valid_indices = np.where(fpr <= fpr_target)[0]
@@ -179,7 +209,11 @@ def find_operating_point(y_true: np.ndarray, y_score: np.ndarray, strategy: str)
         return thresholds_roc[valid_indices[-1]]
     
     if strategy.startswith('ppv@'):
-        ppv_target = int(strategy.split('@')[1]) / 100.0
+        try:
+            ppv_target = int(strategy.split('@')[1]) / 100.0
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid ppv@ strategy format: {strategy}. Expected format: 'ppv@X' where X is an integer (e.g., 'ppv@30', 'ppv@50')")
+        
         # Find the lowest threshold that gives precision >= target
         valid_indices = np.where(prec >= ppv_target)[0]
         if len(valid_indices) == 0:
