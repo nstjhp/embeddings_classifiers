@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--data-path", type=str, required=True, help="Path to the input CSV data for prediction.")
     parser.add_argument("--out-path", type=str, required=True, help="Path to save the output CSV with predictions.")
     parser.add_argument("--protein-col", type=str, default="protein", help="Name of the column with protein IDs.")
+    parser.add_argument("--cols-to-drop", nargs="*", default=['h5_index', 'FDHevidence'], help="Name(s) of unneeded columns in a list.")
     
     args = parser.parse_args()
 
@@ -50,12 +51,20 @@ def main():
         print(f"Error: Protein ID column '{args.protein_col}' not found in the data.")
         return
 
-    df = df.drop(columns = ['h5_index', 'FDHevidence'])
+    # Drop columns that are not features (only if they exist)
+    if args.cols_to_drop:
+        df = df.drop(columns=[c for c in args.cols_to_drop if c in df.columns])
+
     protein_ids = df[args.protein_col]
     feature_cols = [col for col in df.columns if col != args.protein_col]
     X_predict = df[feature_cols]
 
     print(f"Generating predictions for {len(X_predict)} samples...")
+    # Validate that we have features to predict on
+    if X_predict.shape[1] == 0:
+        print("Error: No feature columns found for prediction.")
+        return
+
     calibrated_scores = pipeline.predict_proba(X_predict)
 
     # --- Create output DataFrame and save ---
