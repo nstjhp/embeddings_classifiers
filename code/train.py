@@ -252,7 +252,7 @@ def main():
             # For pipeline
             logreg = model.named_steps.get('logreg')
             if logreg and hasattr(logreg, 'n_iter_'):
-￼                best_iter = logreg.n_iter_[0] if isinstance(logreg.n_iter_, np.ndarray) else logreg.n_iter_
+                best_iter = logreg.n_iter_[0] if isinstance(logreg.n_iter_, np.ndarray) else logreg.n_iter_
 
         # --- Calibration ---
         print("Calibrating model...")

@@ -22,7 +22,7 @@ def parse_tuning_logs(log_dir: str) -> pd.DataFrame:
         raise FileNotFoundError(f"Log directory does not exist: {log_dir}")
 
     if not os.path.isdir(log_dir):
-￼        raise ValueError(f"Path is not a directory: {log_dir}")
+        raise ValueError(f"Path is not a directory: {log_dir}")
 
     all_results = []
     log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
