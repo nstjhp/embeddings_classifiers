@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+*.ipynb
+.ipynb_checkpoints
+
+# Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data and results
+data/
+models/
+predictions/
+final_results/
+tuning_logs/
+jobfiles/
+output/
+
+# Temporary files
+*.log
+*.tmp
+*.bak
