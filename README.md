@@ -16,7 +16,7 @@ They will be 1024 columns wide, the header for them can just be `0,1,2,3,...,102
 - `h5_index`: Index in the original h5 embedding file (will be dropped during training)
 - Any other metadata columns (can be dropped via the `load_data` function)
 
-*Note:** The `protein` column is preserved for tracking predictions, while `h5_index` and label columns are dropped before model training.
+**Note:** The `protein` column is preserved for tracking predictions, while `h5_index` and label columns are dropped before model training.
 
 ## Overview of the Entire Pipeline
 -----
