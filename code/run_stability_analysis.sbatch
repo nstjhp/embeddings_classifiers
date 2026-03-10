@@ -35,16 +35,20 @@ echo "MY_SLURM_PROCESS_ID: ${MY_SLURM_PROCESS_ID}"
 
 # --- Configuration ---
 N_RUNS=50
-MODEL_TYPE="hgb" # Model to train (e.g., xgb, hgb, rf)
-BASE_DATA_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/FDH_EXP_and_no_FINAL.csv"
-HOLDOUT_NEGATIVES_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/holdout_negatives.csv"
-INDEPENDENT_TEST_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/only_maybes.csv"
-LABEL_COLUMN_NAME="FDHevidence"
+MODEL_TYPE="xgb" # Model to train (e.g., xgb, hgb, rf)
+MAIN_DIR="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier"
+MODEL_SAVE_DIR="${MAIN_DIR}/models/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
+PRED_SAVE_DIR="${MAIN_DIR}/predictions/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
+FINAL_RESULTS_DIR="${MAIN_DIR}/final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
+BASE_DATA_PATH="${MAIN_DIR}/data/NAR/nar_POS_NEG_embeddings.csv"
+HOLDOUT_NEGATIVES_PATH="${MAIN_DIR}/data/NAR/nar_holdout_negatives.csv"
+INDEPENDENT_TEST_PATH="${MAIN_DIR}/data/NAR/nar_PUTATIVE_embeddings.csv"
+LABEL_COLUMN_NAME="nar_evidence"
 
-TRAINING_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/train.py"
-PRED_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/predict.py"
-AGGREGATE_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/aggregate_predictions.py"
-ANALYSIS_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/analyse_stability.py"
+TRAINING_SCRIPT="${MAIN_DIR}/code/train.py"
+PRED_SCRIPT="${MAIN_DIR}/code/predict.py"
+AGGREGATE_SCRIPT="${MAIN_DIR}/code/aggregate_predictions.py"
+ANALYSIS_SCRIPT="${MAIN_DIR}/code/analyse_stability.py"
 
 # for XGB
 #FIXED_HYPERPARAMETERS='{"reg_alpha": 0.1, "subsample": 0.8, "min_child_weight": 1, "colsample_bytree": 0.8, "max_depth": 8, "learning_rate": 0.05, "reg_lambda": 5, "scale_pos_weight": 2.0}'
@@ -69,7 +73,7 @@ FIXED_HYPERPARAMETERS='{"l2_regularization": 0.0, "learning_rate": 0.1, "max_lea
 #
 # For this script, we'll assume a 'training_data_pool.csv' exists,
 # containing all positives and the negatives available for training/sampling.
-TRAINING_POOL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/training_data_pool.csv"
+TRAINING_POOL_PATH="${MAIN_DIR}/data/NAR/nar_training_data_pool.csv"
 if [ ! -f "$TRAINING_POOL_PATH" ]; then
     echo "Error: training_data_pool.csv not found. Please prepare it first."
     exit 1
@@ -79,7 +83,6 @@ fi
 # --- 1. Training Loop ---
 echo "Starting training loop for $N_RUNS runs..."
 # make a directory to save N_RUNS models
-MODEL_SAVE_DIR="models/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
 mkdir -p "$MODEL_SAVE_DIR"
 for i in $(seq 1 $N_RUNS)
 do
@@ -104,7 +107,6 @@ done
 # --- 2. Prediction Loop ---
 echo "Starting prediction loop..."
 # make a directory to save N_RUNS predictions
-PRED_SAVE_DIR="predictions/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
 mkdir -p "$PRED_SAVE_DIR"
 
 for i in $(seq 1 $N_RUNS)
@@ -142,50 +144,50 @@ echo "Aggregating all predictions..."
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "holdout_negatives" \
-  --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_holdout_negatives.csv"
+  --output-path "${FINAL_RESULTS_DIR}/aggregated_holdout_negatives.csv"
 
 /usr/bin/time python $AGGREGATE_SCRIPT \
   --predictions-dir "$PRED_SAVE_DIR" \
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "independent_data" \
-  --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_independent_data.csv"
+  --output-path "${FINAL_RESULTS_DIR}/aggregated_independent_data.csv"
 
 /usr/bin/time python $AGGREGATE_SCRIPT \
   --predictions-dir "$PRED_SAVE_DIR" \
   --n-runs "$N_RUNS" \
   --model-type "$MODEL_TYPE" \
   --dataset-name "training_pool" \
-  --output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv"
+  --output-path "${FINAL_RESULTS_DIR}/aggregated_training_pool.csv"
 
-echo "Aggregation done. Final results are in the 'final_results' directory."
-
-/usr/bin/time python $ANALYSIS_SCRIPT \
-  --input-csv "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_holdout_negatives.csv" \
-  --save-summary-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_holdout.csv" \
-  --plot-distributions mean std median mad min max range q25 q75 iqr cv \
-  --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_holdout.png" \
-  --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_holdout.html"
+echo "Aggregation done. Final results are in the '${FINAL_RESULTS_DIR}' directory."
 
 /usr/bin/time python $ANALYSIS_SCRIPT \
-  --input-csv "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_independent_data.csv" \
-  --save-summary-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_maybes.csv" \
+  --input-csv "${FINAL_RESULTS_DIR}/aggregated_holdout_negatives.csv" \
+  --save-summary-path "${FINAL_RESULTS_DIR}/summary_stats_holdout.csv" \
   --plot-distributions mean std median mad min max range q25 q75 iqr cv \
-  --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_maybes.png" \
-  --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_maybes.html"
+  --plot-output-path "${FINAL_RESULTS_DIR}/distributions_plot_holdout.png" \
+  --interactive-plot-path "${FINAL_RESULTS_DIR}/interactive_stability_plot_holdout.html"
 
 /usr/bin/time python $ANALYSIS_SCRIPT \
-  --input-csv "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_aggregated_training_pool.csv" \
-  --save-summary-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_training_pool.csv" \
+  --input-csv "${FINAL_RESULTS_DIR}/aggregated_independent_data.csv" \
+  --save-summary-path "${FINAL_RESULTS_DIR}/summary_stats_maybes.csv" \
   --plot-distributions mean std median mad min max range q25 q75 iqr cv \
-  --plot-output-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_distributions_plot_training_pool.png" \
-  --interactive-plot-path "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_interactive_stability_plot_training_pool.html"
+  --plot-output-path "${FINAL_RESULTS_DIR}/distributions_plot_maybes.png" \
+  --interactive-plot-path "${FINAL_RESULTS_DIR}/interactive_stability_plot_maybes.html"
 
-echo "Summary stats calculated and graphs made. Output is in the 'final_results' directory."
+/usr/bin/time python $ANALYSIS_SCRIPT \
+  --input-csv "${FINAL_RESULTS_DIR}/aggregated_training_pool.csv" \
+  --save-summary-path "${FINAL_RESULTS_DIR}/summary_stats_training_pool.csv" \
+  --plot-distributions mean std median mad min max range q25 q75 iqr cv \
+  --plot-output-path "${FINAL_RESULTS_DIR}/distributions_plot_training_pool.png" \
+  --interactive-plot-path "${FINAL_RESULTS_DIR}/interactive_stability_plot_training_pool.html"
 
-cat "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_training_pool.csv" "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_holdout.csv" "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_maybes.csv" > "final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_ALL.csv"
+echo "Summary stats calculated and graphs made. Output is in the '${FINAL_RESULTS_DIR}' directory."
 
-echo "All datasets combined. Output is final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}_summary_stats_ALL.csv"
+cat "${FINAL_RESULTS_DIR}/summary_stats_training_pool.csv" "${FINAL_RESULTS_DIR}/summary_stats_holdout.csv" "${FINAL_RESULTS_DIR}/summary_stats_maybes.csv" > "${FINAL_RESULTS_DIR}/summary_stats_ALL.csv"
+
+echo "All datasets combined. Output is ${FINAL_RESULTS_DIR}/summary_stats_ALL.csv"
 
 # Append the contents of this script to the output file
 echo "=== Job Script Contents ==="
