@@ -25,7 +25,7 @@ def main():
     parser.add_argument("--data-path", type=str, required=True, help="Path to the input CSV data for prediction.")
     parser.add_argument("--out-path", type=str, required=True, help="Path to save the output CSV with predictions.")
     parser.add_argument("--protein-col", type=str, default="protein", help="Name of the column with protein IDs.")
-    parser.add_argument("--cols-to-drop", nargs="*", default=['h5_index', 'FDHevidence'], help="Name(s) of unneeded columns in a list.")
+    parser.add_argument("--cols-to-drop", nargs="*", default=['h5_index', 'FDHevidence'], help="Name(s) of unneeded columns e.g. --cols-to-drop h5_index nar_evidence.")
     
     args = parser.parse_args()
 
