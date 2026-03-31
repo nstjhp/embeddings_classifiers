@@ -18,7 +18,7 @@ def load_data(
     random_state: int = None,
     shuffle: bool = True,
     label_col: str = "label",
-    drop_cols: tuple = ("label", "h5_index"), # protein is handled separately
+    drop_cols: tuple = ("label", "h5_index", "dataset_tag"), # protein is handled separately
 ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
     """
     Loads and optionally downsamples the negative class from a CSV file.

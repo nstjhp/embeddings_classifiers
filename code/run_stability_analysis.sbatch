@@ -120,21 +120,21 @@ do
     --model-path "$MODEL_PATH" \
     --data-path "$HOLDOUT_NEGATIVES_PATH" \
     --out-path "${PRED_SAVE_DIR}/holdout_negatives_preds_$(printf %03d ${i}).csv" \
-    --cols-to-drop h5_index "$LABEL_COLUMN_NAME"
+    --cols-to-drop h5_index "$LABEL_COLUMN_NAME" dataset_tag
     
   # Predict on independent test set
   /usr/bin/time python $PRED_SCRIPT \
     --model-path "$MODEL_PATH" \
     --data-path "$INDEPENDENT_TEST_PATH" \
     --out-path "${PRED_SAVE_DIR}/independent_data_preds_$(printf %03d ${i}).csv" \
-    --cols-to-drop h5_index "$LABEL_COLUMN_NAME"
+    --cols-to-drop h5_index "$LABEL_COLUMN_NAME" dataset_tag
 
   # Predict on training pool
   /usr/bin/time python "$PRED_SCRIPT" \
     --model-path "$MODEL_PATH" \
     --data-path "$TRAINING_POOL_PATH" \
     --out-path "${PRED_SAVE_DIR}/training_pool_preds_$(printf %03d ${i}).csv" \
-    --cols-to-drop h5_index "$LABEL_COLUMN_NAME"
+    --cols-to-drop h5_index "$LABEL_COLUMN_NAME" dataset_tag
 done
 
 # --- 3. Aggregation Step ---

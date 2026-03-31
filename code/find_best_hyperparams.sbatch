@@ -33,10 +33,10 @@ else
 fi
 echo "MY_SLURM_PROCESS_ID: ${MY_SLURM_PROCESS_ID}"
 
-TRAINING_POOL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/training_data_pool.csv"
+TRAINING_POOL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/data/NAR/2030042_nar_POS_NEG_embeddings.csv"
 OUT_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/jobfiles/${MY_SLURM_PROCESS_ID}_pred_probs.csv"
 MODEL_PATH="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/models/${MY_SLURM_PROCESS_ID}_{model_name}.joblib"
-LABEL_COLUMN_NAME="FDHevidence"
+LABEL_COLUMN_NAME="label"
 TRAINING_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/train.py"
 HYPERPARAM_SELECTION_SCRIPT="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/code/select_best_params.py"
 RESULTS_DIR="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier/final_results"
