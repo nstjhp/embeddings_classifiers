@@ -109,7 +109,11 @@ def main():
 
     df = df.copy()
     df["protein"] = df["protein"].astype(str)
+    # Keep the original manifest value for traceability/debugging.
+    # The master index file is 1-based, but HDF5/NumPy indexing is 0-based,
+    # so normalise here to 0-based for all downstream checks and extraction.
     df["h5_index_raw"] = df["h5_index"]
+    df["h5_index"] = pd.to_numeric(df["h5_index"], errors="coerce") - 1
     df["dataset_tag"] = df["dataset_tag"].astype(str)
     df["status"] = "ok"
     df["fail_reason"] = ""
@@ -261,6 +265,11 @@ def main():
         return 'ignored'
 
     full_df['label'] = full_df['dataset_tag'].apply(assign_label)
+
+    # Restore the original 1-based manifest index for output files.
+    # Above used 0-based h5_index for HDF5 extraction, but outputs should
+    # match the input TSV to avoid confusion.
+    full_df['h5_index'] = full_df['h5_index_raw']
 
     # Reorder columns: protein, h5_index, dataset_tag, label, [features...]
     cols = ['protein', 'h5_index', 'dataset_tag', 'label']
