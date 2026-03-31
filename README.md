@@ -4,8 +4,79 @@ We aim to use the protein embeddings generated from the GlobDB for useful scienc
 
 ## Data preparation
 
-Starting from the GlobDB embeddings h5 file, your embeddings of interest need to be in CSV file.
-They will be 1024 columns wide, the header for them can just be `0,1,2,3,...,1022,1023`.
+The script `data_prep.py` was made to help with this.
+
+### Requirements
+
+```bash
+pandas h5py numpy
+```
+
+### Input File Format (Manifest)
+
+The script expects a **headerless, 3-column TSV** file as follows:
+
+| Column | Name | Description |
+| :--- | :--- | :--- |
+| 1 | `protein_id` | Unique identifier for the protein. |
+| 2 | `h5_index` | The integer index of the embedding within the `.h5` file. |
+| 3 | `dataset_tag` | A string tag used for labelling (e.g., `P1`, `N1`, `M1`) for positive, negative or putative protein sets. |
+
+**Example:**
+```text
+PROT_A1    1205    P1
+PROT_B2    5502    N1
+PROT_C3    9910    M1
+```
+
+### Usage and Arguments
+
+| Argument | Description |
+| :--- | :--- |
+| `--input-tsv` | Path to your 3-column manifest file. |
+| `--h5-path` | Path to the `.h5` file containing the embeddings. |
+| `--out-train` | Output path for the training pool (Positives + remaining Negatives). |
+| `--out-putative` | Output path for putative proteins (labeled with `?`). |
+| `--pos-tags` | List of tags to treat as Positives (default: `P1 P2`). |
+| `--neg-tags` | List of tags to treat as Negatives (default: `N1 N2`). |
+| `--putative-tags` | List of tags to treat as Putatives (default: `M1 M2`). |
+| `--neg-sample-frac` | Fraction of negatives to reserve for the independent holdout set (e.g., `0.5`). |
+| `--out-holdout` | Path to save the holdout negatives (required if using sampling). |
+
+### Execution (SLURM)
+
+Due to filesystem permissions where the `.h5` file is not be accessible to the compute nodes via `sbatch`, you should use `salloc` to run the preparation script on the login nodes. 
+This ensures the job runs with the necessary interactive environment access.
+
+**Example command run from the project root:**
+
+```bash
+salloc --job-name=nar_data_prep --ntasks=1 --cpus-per-task=1 --mem=3G -t 00:30:00 code/run_data_prep.sbatch
+```
+
+> **Note:** The `run_data_prep.sbatch` wrapper script should contain the specific `python data_prep.py ...` call with your desired paths and tags.
+
+### Timings
+
+Running the above line to extract 73199 embeddings and write the corresponding CSVs took ~210 s.
+
+### Warnings and Errors
+
+* **Duplicate Detection:** If duplicate protein IDs or H5 indices are present in your input file you should get at least a warning and possibly an error if it is serious. Exact duplicates across the 3 columns are dropped, but others are usually an error to fix in your data files e.g. same protein and index but different dataset tags.
+* **Failure Auditing:** If an index is out of bounds or an embedding is corrupted, the script logs the specific `protein_id` to a `.extraction_failures.csv` file.
+* **Tag Validation:** Checks for no overlap between your Positive, Negative, and Putative tag definitions.
+
+### Output
+
+2 or 3 output CSV files are produced for downstream ML:
+| File | Description |
+| :--- | :--- |
+| `Training pool` | Positives + Negatives for use in model training |
+| `Putative set` | The maybes we want to predict as pos/neg (labelled with `?`). |
+| `Negative holdout set (Optional)` | Due to imbalance we normally have many more known negative (for our property of interest) proteins. We can holdout a `--neg-sample-frac` of these that will never be used in training as a negative control group. |
+
+The columns for the embeddings will be 1024 columns wide, the header for them can just be `0,1,2,3,...,1022,1023`.
+We need other metadata as well as follows:
 
 **Required columns:**
 - `protein`: A unique identifier for each protein
@@ -16,7 +87,7 @@ They will be 1024 columns wide, the header for them can just be `0,1,2,3,...,102
 - `h5_index`: Index in the original h5 embedding file (will be dropped during training)
 - Any other metadata columns (can be dropped via the `load_data` function)
 
-**Note:** The `protein` column is preserved for tracking predictions, while `h5_index` and label columns are dropped before model training.
+> **Note:** The `protein` column is preserved for tracking predictions, while `h5_index` and label columns are dropped before model training.
 
 ## Overview of the Entire Pipeline
 -----
