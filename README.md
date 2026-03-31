@@ -76,11 +76,11 @@ Running the above line to extract 73199 embeddings and write the corresponding C
 | `Negative holdout set (Optional)` | Due to imbalance we normally have many more known negative (for our property of interest) proteins. We can holdout a `--neg-sample-frac` of these that will never be used in training as a negative control group. |
 
 The columns for the embeddings will be 1024 columns wide, the header for them can just be `0,1,2,3,...,1022,1023`.
-We need other metadata as well as follows:
+We need other metadata columns as well as follows:
 
 **Required columns:**
 - `protein`: A unique identifier for each protein
-- A label column (e.g., `FDHevidence`): Binary labels (0 or 1) for current classification tasks (identified as `label_col` in the code)
+- A label column (e.g., `label`): Binary labels (0 or 1) for current classification tasks (identified as `label_col` in the code). Following the `data_prep.py` script will give a `?` to the putative set, which is fine as this dataset is obviously ignored for training.
 - 1024 embeddings columns as above.
 
 **Optional columns:**
