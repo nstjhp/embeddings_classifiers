@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=8
 # #SBATCH --mem-per-cpu=16000M # only for CPU memory
 #SBATCH --mem=5000M # only for CPU memory
-#SBATCH --time=0-1:00:00
+#SBATCH --time=0-2:00:00
 #SBATCH --partition=basic
 
 # Exit the slurm script if a command fails
@@ -35,15 +35,15 @@ echo "MY_SLURM_PROCESS_ID: ${MY_SLURM_PROCESS_ID}"
 
 # --- Configuration ---
 N_RUNS=50
-MODEL_TYPE="xgb" # Model to train (e.g., xgb, hgb, rf)
+MODEL_TYPE="hgb" # Model to train (e.g., xgb, hgb, rf)
 MAIN_DIR="/lisc/data/scratch/dome/wagner/pullen/embed_classifiers/general_classifier"
 MODEL_SAVE_DIR="${MAIN_DIR}/models/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
 PRED_SAVE_DIR="${MAIN_DIR}/predictions/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
 FINAL_RESULTS_DIR="${MAIN_DIR}/final_results/${MY_SLURM_PROCESS_ID}_${MODEL_TYPE}"
-BASE_DATA_PATH="${MAIN_DIR}/data/NAR/nar_POS_NEG_embeddings.csv"
-HOLDOUT_NEGATIVES_PATH="${MAIN_DIR}/data/NAR/nar_holdout_negatives.csv"
-INDEPENDENT_TEST_PATH="${MAIN_DIR}/data/NAR/nar_PUTATIVE_embeddings.csv"
-LABEL_COLUMN_NAME="nar_evidence"
+TRAINING_POOL_PATH="${MAIN_DIR}/data/NAR/2030042_nar_POS_NEG_embeddings.csv"
+HOLDOUT_NEGATIVES_PATH="${MAIN_DIR}/data/NAR/2030042_nar_holdout_negatives.csv"
+INDEPENDENT_TEST_PATH="${MAIN_DIR}/data/NAR/2030042_nar_PUTATIVE_embeddings.csv"
+LABEL_COLUMN_NAME="label"
 
 TRAINING_SCRIPT="${MAIN_DIR}/code/train.py"
 PRED_SCRIPT="${MAIN_DIR}/code/predict.py"
@@ -51,34 +51,23 @@ AGGREGATE_SCRIPT="${MAIN_DIR}/code/aggregate_predictions.py"
 ANALYSIS_SCRIPT="${MAIN_DIR}/code/analyse_stability.py"
 
 # for XGB
-#FIXED_HYPERPARAMETERS='{"reg_alpha": 0.1, "subsample": 0.8, "min_child_weight": 1, "colsample_bytree": 0.8, "max_depth": 8, "learning_rate": 0.05, "reg_lambda": 5, "scale_pos_weight": 2.0}'
+# FIXED_HYPERPARAMETERS='{"max_depth": 4, "learning_rate": 0.1, "reg_lambda": 5, "reg_alpha": 0, "scale_pos_weight": 2.0, "subsample": 0.8, "min_child_weight": 1, "colsample_bytree": 1.0}'
+# FIXED_HYPERPARAMETERS='{"scale_pos_weight": 0.9973753280839895, "colsample_bytree": 0.8, "learning_rate": 0.1, "reg_alpha": 0, "min_child_weight": 1, "max_depth": 8, "subsample": 0.6, "reg_lambda": 1}'
 # for HGB
-FIXED_HYPERPARAMETERS='{"l2_regularization": 0.0, "learning_rate": 0.1, "max_leaf_nodes": 63, "min_samples_leaf": 50}'
+# FIXED_HYPERPARAMETERS='{"l2_regularization": 0.0, "learning_rate": 0.1, "max_leaf_nodes": 63, "min_samples_leaf": 50}'
+# FIXED_HYPERPARAMETERS='{"l2_regularization": 1.0, "max_leaf_nodes": 127, "learning_rate": 0.1, "min_samples_leaf": 100}'
+FIXED_HYPERPARAMETERS='{"l2_regularization": 0.5, "learning_rate": 0.1, "max_leaf_nodes": 127, "min_samples_leaf": 100}'
 
 # --- Setup Directories ---
 #echo "Setting up directories..."
 #mkdir -p models predictions final_results
 
-# --- Data Preparation (One-time setup) ---
-#echo "Preparing data splits..."
-# This assumes you have a tool or script to split your negatives.
-# For example, using Python:
-# python -c "import pandas as pd; df = pd.read_csv('$BASE_DATA_PATH'); \
-# negatives = df[df['label'] == 0]; \
-# holdout = negatives.sample(frac=0.5, random_state=42); \
-# training_negs = negatives.drop(holdout.index); \
-# positives = df[df['label'] == 1]; \
-# pd.concat([positives, training_negs]).to_csv('training_data_pool.csv', index=False); \
-# holdout.to_csv('$HOLDOUT_NEGATIVES_PATH', index=False)"
-#
 # For this script, we'll assume a 'training_data_pool.csv' exists,
 # containing all positives and the negatives available for training/sampling.
-TRAINING_POOL_PATH="${MAIN_DIR}/data/NAR/nar_training_data_pool.csv"
 if [ ! -f "$TRAINING_POOL_PATH" ]; then
     echo "Error: training_data_pool.csv not found. Please prepare it first."
     exit 1
 fi
-
 
 # --- 1. Training Loop ---
 echo "Starting training loop for $N_RUNS runs..."
